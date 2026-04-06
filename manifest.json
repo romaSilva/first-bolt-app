@@ -1,6 +1,6 @@
 {
   "display_information": {
-    "name": "first-bolt-app"
+    "name": "first-bolt-app (local)"
   },
   "features": {
     "app_home": {
@@ -9,14 +9,35 @@
       "messages_tab_read_only_enabled": false
     },
     "bot_user": {
-      "display_name": "first-bolt-app",
+      "display_name": "first-bolt-app (local)",
       "always_online": true
-    }
+    },
+    "slash_commands": [
+      {
+        "command": "/ping",
+        "description": "Checks if the app is listening",
+        "should_escape": false
+      },
+      {
+        "command": "/broadcast",
+        "description": "Broadcasts a message",
+        "should_escape": false
+      }
+    ]
   },
   "oauth_config": {
     "scopes": {
-      "bot": ["channels:history", "chat:write", "im:history"]
-    }
+      "bot": [
+        "groups:write",
+        "channels:history",
+        "chat:write",
+        "commands",
+        "im:history",
+        "mpim:write",
+        "im:write"
+      ]
+    },
+    "pkce_enabled": false
   },
   "settings": {
     "event_subscriptions": {

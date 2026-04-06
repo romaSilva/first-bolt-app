@@ -1,28 +1,25 @@
+import "dotenv/config";
 import { App } from "@slack/bolt";
+import { boss } from "./boss.js";
+import { registerHandlers } from "./handlers.js";
+import { registerWorker } from "./worker.js";
 
-/**
- * This sample Slack application uses Socket Mode.
- * For the companion getting started setup guide, see:
- * https://docs.slack.dev/tools/bolt-js/getting-started/
- */
-
-// Initializes your app with your bot token and app token
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   socketMode: true,
   appToken: process.env.SLACK_APP_TOKEN,
 });
 
-app.command("/ping", async ({ command, ack, say }) => {
-  // Acknowledge command request
-  await ack();
-
-  // Send a message to the channel where the command was triggered
-  await say(`Hello, <@${command.user_id}>!`);
-});
+registerHandlers(app);
 
 (async () => {
-  // Start your app
+  // Start PgBoss — creates the pgboss schema on first run
+  await boss.start();
+
+  await registerWorker(boss, app.client, app.logger);
+
+  app.logger.info("PgBoss started and broadcast worker registered.");
+
   await app.start(process.env.PORT || 3000);
 
   app.logger.info("⚡️ Bolt app is running!");
