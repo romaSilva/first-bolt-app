@@ -83,6 +83,59 @@ export function registerHandlers(app) {
     },
   );
 
+  // ── Broadcast approval actions ────────────────────────────────────────────
+  app.action(
+    "approve_broadcast",
+    async ({ ack, action, body, client, logger }) => {
+      await ack();
+      const { broadcastId, userId } = JSON.parse(action.value);
+      logger.info(
+        `Broadcast approved — broadcastId: ${broadcastId}, userId: ${userId}`,
+      );
+
+      const channel = body.channel.id;
+      const messageTs = body.message.ts;
+
+      await client.chat.update({
+        channel,
+        ts: messageTs,
+        blocks: body.message.blocks.filter((b) => b.type !== "actions"),
+      });
+
+      await client.chat.postMessage({
+        channel,
+        thread_ts: messageTs,
+        text: `✅ Answer saved: *Approved* by <@${body.user.id}>.`,
+      });
+    },
+  );
+
+  app.action(
+    "reject_broadcast",
+    async ({ ack, action, body, client, logger }) => {
+      await ack();
+      const { broadcastId, userId } = JSON.parse(action.value);
+      logger.info(
+        `Broadcast rejected — broadcastId: ${broadcastId}, userId: ${userId}`,
+      );
+
+      const channel = body.channel.id;
+      const messageTs = body.message.ts;
+
+      await client.chat.update({
+        channel,
+        ts: messageTs,
+        blocks: body.message.blocks.filter((b) => b.type !== "actions"),
+      });
+
+      await client.chat.postMessage({
+        channel,
+        thread_ts: messageTs,
+        text: `❌ Answer saved: *Rejected* by <@${body.user.id}>.`,
+      });
+    },
+  );
+
   // ── DM thread reply ────────────────────────────────────────────────────────
   // The user submits broadcast content by replying to the bot's DM confirmation.
   app.message(async ({ message, client, logger }) => {
