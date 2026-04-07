@@ -3,7 +3,10 @@ import { pool } from "./db.js";
 import { boss } from "./boss.js";
 import { broadcastModal } from "./views/broadcastModal.js";
 import { sendDM } from "./lib/slack.js";
-import { QUEUE } from "./worker.js";
+import {
+  REQUEST_APPROVAL_QUEUE,
+  HANDLE_APPROVAL_QUEUE,
+} from "./workers/index.js";
 
 // In-memory store for broadcasts awaiting a reply in the bot DM thread (keyed by bot message ts).
 // Entry is created when the modal is submitted, deleted when the user replies with the content.
@@ -102,6 +105,15 @@ export function registerHandlers(app) {
         blocks: body.message.blocks.filter((b) => b.type !== "actions"),
       });
 
+      await boss.send(HANDLE_APPROVAL_QUEUE, {
+        broadcastId,
+        approved: true,
+        approverId: body.user.id,
+        creatorId: userId,
+        channelId: channel,
+        messageTs,
+      });
+
       await client.chat.postMessage({
         channel,
         thread_ts: messageTs,
@@ -126,6 +138,15 @@ export function registerHandlers(app) {
         channel,
         ts: messageTs,
         blocks: body.message.blocks.filter((b) => b.type !== "actions"),
+      });
+
+      await boss.send(HANDLE_APPROVAL_QUEUE, {
+        broadcastId,
+        approved: false,
+        approverId: body.user.id,
+        creatorId: userId,
+        channelId: channel,
+        messageTs,
       });
 
       await client.chat.postMessage({
@@ -180,7 +201,7 @@ export function registerHandlers(app) {
     const broadcastId = randomUUID();
 
     await boss.send(
-      QUEUE,
+      REQUEST_APPROVAL_QUEUE,
       {
         broadcastId,
         title,

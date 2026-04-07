@@ -2,7 +2,7 @@ import "dotenv/config";
 import { App } from "@slack/bolt";
 import { boss } from "./boss.js";
 import { registerHandlers } from "./handlers.js";
-import { registerWorker } from "./worker.js";
+import { registerAllWorkers } from "./workers/index.js";
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
@@ -16,9 +16,9 @@ registerHandlers(app);
   // Start PgBoss — creates the pgboss schema on first run
   await boss.start();
 
-  await registerWorker(boss, app.client, app.logger);
+  await registerAllWorkers(boss, app.client, app.logger);
 
-  app.logger.info("PgBoss started and broadcast worker registered.");
+  app.logger.info("PgBoss started and all broadcast workers registered.");
 
   await app.start(process.env.PORT || 3000);
 
