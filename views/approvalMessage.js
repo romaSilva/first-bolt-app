@@ -10,7 +10,7 @@
  * @returns {{ text: string, blocks: object[] }}
  */
 export function approvalMessage({ broadcastId, title, scheduledFor, userId }) {
-  const buttonValue = JSON.stringify({ broadcastId, userId });
+  const buttonValue = JSON.stringify({ broadcastId, userId, scheduledFor });
 
   return {
     text: `📋 Approval request from <@${userId}>: *${title}*`,

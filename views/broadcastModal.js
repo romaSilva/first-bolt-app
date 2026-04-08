@@ -64,5 +64,28 @@ export const broadcastModal = {
       },
       optional: false,
     },
+    {
+      type: "input",
+      block_id: "broadcast_channels",
+      label: {
+        type: "plain_text",
+        text: "Channels",
+        emoji: true,
+      },
+      element: {
+        type: "multi_conversations_select",
+        action_id: "channels_select",
+        placeholder: {
+          type: "plain_text",
+          text: "Select channels",
+          emoji: true,
+        },
+        default_to_current_conversation: false,
+        filter: {
+          include: ["public", "private"],
+          exclude_bot_users: true,
+        },
+      },
+    },
   ],
 };

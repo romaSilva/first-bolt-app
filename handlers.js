@@ -75,7 +75,7 @@ export function registerHandlers(app) {
         title,
         scheduleAt,
         scheduledDate,
-        userId: body.user.id,
+        creatorId: body.user.id,
         channelId: response.channel,
         approvers,
       });
@@ -91,7 +91,7 @@ export function registerHandlers(app) {
     "approve_broadcast",
     async ({ ack, action, body, client, logger }) => {
       await ack();
-      const { broadcastId, userId } = JSON.parse(action.value);
+      const { broadcastId, userId, scheduledFor } = JSON.parse(action.value);
       logger.info(
         `Broadcast approved — broadcastId: ${broadcastId}, userId: ${userId}`,
       );
@@ -112,6 +112,7 @@ export function registerHandlers(app) {
         creatorId: userId,
         channelId: channel,
         messageTs,
+        scheduledFor,
       });
 
       await client.chat.postMessage({
@@ -126,7 +127,7 @@ export function registerHandlers(app) {
     "reject_broadcast",
     async ({ ack, action, body, client, logger }) => {
       await ack();
-      const { broadcastId, userId } = JSON.parse(action.value);
+      const { broadcastId, userId, scheduledFor } = JSON.parse(action.value);
       logger.info(
         `Broadcast rejected — broadcastId: ${broadcastId}, userId: ${userId}`,
       );
@@ -147,6 +148,7 @@ export function registerHandlers(app) {
         creatorId: userId,
         channelId: channel,
         messageTs,
+        scheduledFor,
       });
 
       await client.chat.postMessage({
@@ -184,7 +186,7 @@ export function registerHandlers(app) {
 
     pendingBroadcasts.delete(message.thread_ts);
 
-    const { title, scheduledDate, userId, approvers } = pending;
+    const { title, scheduledDate, creatorId, approvers } = pending;
 
     const files = (message.files ?? []).map(
       ({ id, name, mimetype, url_private, permalink }) => ({
@@ -208,7 +210,7 @@ export function registerHandlers(app) {
         scheduledFor: scheduledDate,
         messageBody: message.text,
         files,
-        userId,
+        creatorId,
         approvers,
         channelId: message.channel,
         threadTs: message.thread_ts,
