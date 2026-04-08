@@ -1,23 +1,26 @@
+import type { PgBoss } from "pg-boss";
+import type { WebClient } from "@slack/web-api";
+import type { Logger } from "@slack/bolt";
 import {
   register as registerRequestApproval,
   QUEUE as REQUEST_APPROVAL_QUEUE,
-} from "./requestApproval.js";
+} from "./requestApproval.ts";
 import {
   register as registerHandleApproval,
   QUEUE as HANDLE_APPROVAL_QUEUE,
-} from "./handleApproval.js";
-import { register as registerFanout, QUEUE as FANOUT_QUEUE } from "./fanout.js";
+} from "./handleApproval.ts";
+import { register as registerFanout, QUEUE as FANOUT_QUEUE } from "./fanout.ts";
 import {
   register as registerDeliver,
   QUEUE as DELIVER_QUEUE,
-} from "./deliver.js";
+} from "./deliver.ts";
 
 export const QUEUES = {
   REQUEST_APPROVAL: REQUEST_APPROVAL_QUEUE,
   HANDLE_APPROVAL: HANDLE_APPROVAL_QUEUE,
   FANOUT: FANOUT_QUEUE,
   DELIVER: DELIVER_QUEUE,
-};
+} as const;
 
 // Re-export individual queue names for consumers that reference them directly.
 export {
@@ -27,14 +30,11 @@ export {
   DELIVER_QUEUE,
 };
 
-/**
- * Registers all PgBoss workers.
- *
- * @param {import("pg-boss").default} boss - Started PgBoss instance
- * @param {import("@slack/bolt").App["client"]} client - Slack Web API client
- * @param {import("@slack/bolt").Logger} logger - Bolt logger
- */
-export async function registerAllWorkers(boss, client, logger) {
+export async function registerAllWorkers(
+  boss: PgBoss,
+  client: WebClient,
+  logger: Logger,
+): Promise<void> {
   await registerRequestApproval(boss, client, logger);
   await registerHandleApproval(boss, client, logger);
   await registerFanout(boss, client, logger);

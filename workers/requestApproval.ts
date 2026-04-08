@@ -1,23 +1,26 @@
-import { approvalMessage } from "../views/approvalMessage.js";
+import type { PgBoss } from "pg-boss";
+import type { WebClient } from "@slack/web-api";
+import type { Logger } from "@slack/bolt";
+import { approvalMessage } from "../views/approvalMessage.ts";
+import type { RequestApprovalJobData } from "../types.ts";
 
 export const QUEUE = "broadcast.request-approval";
 
-/**
- * @param {import("pg-boss").default} boss
- * @param {import("@slack/bolt").App["client"]} client
- * @param {import("@slack/bolt").Logger} logger
- */
-export async function register(boss, client, logger) {
+export async function register(
+  boss: PgBoss,
+  client: WebClient,
+  logger: Logger,
+): Promise<void> {
   await boss.createQueue(QUEUE);
 
-  await boss.work(QUEUE, async ([job]) => {
+  await boss.work<RequestApprovalJobData>(QUEUE, async ([job]) => {
     const {
       broadcastId,
       channelId,
       threadTs,
       title,
       scheduledFor,
-      userId,
+      requesterId,
       messageBody,
       files,
       approvers,
@@ -39,8 +42,8 @@ export async function register(boss, client, logger) {
 
     // Step 1: Intro message with broadcast metadata and approve/reject buttons.
     const intro = await client.chat.postMessage({
-      channel: channel.id,
-      ...approvalMessage({ broadcastId, title, scheduledFor, userId }),
+      channel: channel!.id!,
+      ...approvalMessage({ broadcastId, title, scheduledFor, requesterId }),
     });
 
     // Step 2: Reply in thread with the message content (+ file if present).
@@ -53,15 +56,15 @@ export async function register(boss, client, logger) {
       const buffer = Buffer.from(await downloadResponse.arrayBuffer());
 
       await client.files.uploadV2({
-        channel_id: channel.id,
-        thread_ts: intro.ts,
+        channel_id: channel!.id!,
+        thread_ts: intro.ts!,
         file: buffer,
         filename: firstFile.name,
         initial_comment: messageBody,
       });
     } else {
       await client.chat.postMessage({
-        channel: channel.id,
+        channel: channel!.id!,
         thread_ts: intro.ts,
         text: messageBody,
       });

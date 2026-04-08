@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { App } from "@slack/bolt";
-import { boss } from "./boss.js";
-import { registerHandlers } from "./handlers.js";
-import { registerAllWorkers } from "./workers/index.js";
+import { boss } from "./boss.ts";
+import { registerHandlers } from "./handlers.ts";
+import { registerAllWorkers } from "./workers/index.ts";
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,

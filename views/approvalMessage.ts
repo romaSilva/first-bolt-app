@@ -1,32 +1,41 @@
-/**
- * Builds the introductory approval DM with broadcast metadata and approve/reject buttons.
- * The actual broadcast content is posted as a reply in the thread.
- *
- * @param {object} params
- * @param {string} params.broadcastId
- * @param {string} params.title
- * @param {string} params.scheduledFor
- * @param {string} params.userId - Slack user ID of the broadcast creator
- * @returns {{ text: string, blocks: object[] }}
- */
-export function approvalMessage({ broadcastId, title, scheduledFor, userId }) {
-  const buttonValue = JSON.stringify({ broadcastId, userId, scheduledFor });
+import type { KnownBlock } from "@slack/web-api";
+
+interface ApprovalMessageMetadata {
+  broadcastId: string;
+  title: string;
+  scheduledFor: string;
+  requesterId: string;
+}
+
+export function approvalMessage({
+  broadcastId,
+  title,
+  scheduledFor,
+  requesterId,
+}: ApprovalMessageMetadata): { blocks: KnownBlock[] } {
+  const metadata: ApprovalMessageMetadata = {
+    broadcastId,
+    title,
+    scheduledFor,
+    requesterId,
+  };
+
+  const buttonValue = JSON.stringify(metadata);
 
   return {
-    text: `📋 Approval request from <@${userId}>: *${title}*`,
     blocks: [
       {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*Broadcast Approval Request*\n\nYou have a pending approval from <@${userId}>.`,
+          text: `*Broadcast Approval Request*\n\nYou have a pending approval from <@${requesterId}>.`,
         },
       },
       {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*Title*: ${title}\n*Scheduled For*: ${scheduledFor}\n*Broadcast ID*: \`${broadcastId}\`\n*Requested By*: <@${userId}>`,
+          text: `*Title*: ${title}\n*Scheduled For*: ${scheduledFor}\n*Broadcast ID*: \`${broadcastId}\`\n*Requested By*: <@${requesterId}>`,
         },
       },
       { type: "divider" },

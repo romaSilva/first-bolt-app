@@ -1,4 +1,6 @@
-export const broadcastModal = {
+import type { View } from "@slack/web-api";
+
+export const broadcastModal: View = {
   type: "modal",
   callback_id: "broadcast_modal",
   title: {

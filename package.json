@@ -2,11 +2,11 @@
   "name": "first-bolt-app",
   "version": "2.0.0",
   "description": "Getting Started ⚡️ Bolt for JavaScript",
-  "main": "app.js",
+  "main": "app.ts",
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node app.js",
+    "start": "tsx app.ts",
     "dev": "tsx app.ts"
   },
   "license": "MIT",
