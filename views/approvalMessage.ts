@@ -1,9 +1,10 @@
 import type { KnownBlock } from "@slack/web-api";
+import { toReadableDate } from "../lib/date.ts";
 
-interface ApprovalMessageMetadata {
+export interface ApprovalMessageMetadata {
   broadcastId: string;
   title: string;
-  scheduledFor: string;
+  scheduledFor: number;
   requesterId: string;
 }
 
@@ -12,17 +13,17 @@ export function approvalMessage({
   title,
   scheduledFor,
   requesterId,
-}: ApprovalMessageMetadata): { blocks: KnownBlock[] } {
+}: ApprovalMessageMetadata): { text: string; blocks: KnownBlock[] } {
   const metadata: ApprovalMessageMetadata = {
     broadcastId,
     title,
     scheduledFor,
     requesterId,
   };
-
   const buttonValue = JSON.stringify(metadata);
 
   return {
+    text: `📋 Approval request from <@${requesterId}>: *${title}*`,
     blocks: [
       {
         type: "section",
@@ -35,7 +36,7 @@ export function approvalMessage({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*Title*: ${title}\n*Scheduled For*: ${scheduledFor}\n*Broadcast ID*: \`${broadcastId}\`\n*Requested By*: <@${requesterId}>`,
+          text: `*Title*: ${title}\n*Scheduled For*: ${toReadableDate(scheduledFor)}\n*Broadcast ID*: \`${broadcastId}\`\n*Requested By*: <@${requesterId}>`,
         },
       },
       { type: "divider" },

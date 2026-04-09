@@ -71,8 +71,13 @@ export const broadcastModal: View = {
       block_id: "broadcast_channels",
       label: {
         type: "plain_text",
-        text: "Channels",
+        text: "Audience",
         emoji: true,
+      },
+      hint: {
+        type: "plain_text",
+        text: "Members of the selected channels will each receive a Direct Message with the broadcast content.",
+        emoji: false,
       },
       element: {
         type: "multi_conversations_select",

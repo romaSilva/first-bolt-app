@@ -5,6 +5,7 @@ import { sendDM } from "../lib/slack.ts";
 import { sendJob } from "../lib/queue.ts";
 import { FANOUT_QUEUE } from "./index.ts";
 import type { HandleApprovalJobData } from "../types.ts";
+import { toReadableDate } from "../lib/date.ts";
 
 export const QUEUE = "broadcast.handle-approval";
 
@@ -16,6 +17,7 @@ export async function register(
   await boss.createQueue(QUEUE);
 
   await boss.work<HandleApprovalJobData>(QUEUE, async ([job]) => {
+    logger.info(`Received handle-approval job ${JSON.stringify(job.data)}`);
     const { broadcastId, approved, approverId, requesterId, scheduledFor } =
       job.data;
 
@@ -23,24 +25,36 @@ export async function register(
       `Processing handle-approval job ${job.id} — broadcastId: "${broadcastId}", approved: ${approved}`,
     );
 
-    if (approved) {
-      await sendDM(
-        client,
-        requesterId,
-        `✅ Your broadcast \`${broadcastId}\` was *approved* by <@${approverId}>. It's scheduled to go out on ${scheduledFor}.`,
+    try {
+      if (approved) {
+        await sendDM(
+          client,
+          requesterId,
+          `✅ Your broadcast \`${broadcastId}\` was *approved* by <@${approverId}>. It's scheduled to go out on ${toReadableDate(scheduledFor)}.`,
+        );
+
+        await sendJob(
+          FANOUT_QUEUE,
+          { broadcastId },
+          { group: { id: broadcastId } },
+        );
+
+        logger.info(`Broadcast ${broadcastId} approved — fanout job created.`);
+      } else {
+        await sendDM(
+          client,
+          requesterId,
+          `❌ Your broadcast \`${broadcastId}\` was *rejected* by <@${approverId}>.`,
+        );
+
+        logger.info(`Broadcast ${broadcastId} rejected — no further action.`);
+      }
+    } catch (error) {
+      logger.error(
+        `Failed to process handle-approval job ${job.id} — broadcastId: "${broadcastId}", approved: ${approved}`,
+        error,
       );
-
-      await sendJob(FANOUT_QUEUE, { broadcastId });
-
-      logger.info(`Broadcast ${broadcastId} approved — fanout job created.`);
-    } else {
-      await sendDM(
-        client,
-        requesterId,
-        `❌ Your broadcast \`${broadcastId}\` was *rejected* by <@${approverId}>.`,
-      );
-
-      logger.info(`Broadcast ${broadcastId} rejected — no further action.`);
+      throw error;
     }
   });
 }

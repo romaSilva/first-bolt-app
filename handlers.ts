@@ -8,27 +8,22 @@ import {
   REQUEST_APPROVAL_QUEUE,
   HANDLE_APPROVAL_QUEUE,
 } from "./workers/index.ts";
+import type { SlackFile } from "./types.ts";
+import { toReadableDate } from "./lib/date.ts";
+import type { ApprovalMessageMetadata } from "./views/approvalMessage.ts";
 
 interface PendingBroadcast {
   title: string;
-  scheduleAt: number;
-  scheduledDate: string;
+  scheduledFor: number;
   requesterId: string;
   channelId: string;
   approvers: string[];
+  audience: string[];
 }
 
 // In-memory store for broadcasts awaiting a reply in the bot DM thread (keyed by bot message ts).
 // Entry is created when the modal is submitted, deleted when the user replies with the content.
 const pendingBroadcasts = new Map<string, PendingBroadcast>();
-
-interface SlackFile {
-  id: string;
-  name: string;
-  mimetype: string;
-  url_private: string;
-  permalink: string;
-}
 
 interface GenericMessageEvent {
   channel_type: "channel" | "group" | "im" | "mpim";
@@ -37,12 +32,6 @@ interface GenericMessageEvent {
   text?: string;
   channel: string;
   files?: SlackFile[];
-}
-
-interface ApprovalActionValue {
-  broadcastId: string;
-  userId: string;
-  scheduledFor: string;
 }
 
 /**
@@ -82,21 +71,17 @@ export function registerHandlers(app: App): void {
 
       const values = view.state.values;
       const title = values.broadcast_title.title_input.value!;
-      const scheduleAt =
+      const scheduledFor =
         values.broadcast_schedule.schedule_input.selected_date_time!;
       const approvers =
         values.broadcast_approvers["multi_users_select-action"].selected_users!;
+      const audience =
+        values.broadcast_channels.channels_select.selected_conversations!;
 
-      const scheduledDate = new Date(scheduleAt * 1000).toLocaleString(
-        "en-US",
-        {
-          dateStyle: "long",
-          timeStyle: "short",
-        },
-      );
+      const readableScheduledFor = toReadableDate(scheduledFor);
 
       const message = [
-        `Hey <@${body.user.id}>! 👋 Your broadcast *${title}* has been registered for ${scheduledDate}.`,
+        `Hey <@${body.user.id}>! 👋 Your broadcast *${title}* has been registered for ${readableScheduledFor}.`,
         `Reply to this message with the content you want to broadcast. You can attach files too.`,
       ].join("\n");
 
@@ -105,95 +90,16 @@ export function registerHandlers(app: App): void {
       // Key the pending entry by the bot message ts so the thread-reply handler can look it up.
       pendingBroadcasts.set(response.ts, {
         title,
-        scheduleAt,
-        scheduledDate,
+        scheduledFor,
         requesterId: body.user.id,
         channelId: response.channel,
         approvers,
+        audience,
       });
 
       logger.info(
-        `Broadcast pending reply — title: "${title}", scheduledAt: "${scheduledDate}", thread_ts: ${response.ts}`,
+        `Broadcast pending reply — title: "${title}", scheduledFor: "${readableScheduledFor}", thread_ts: ${response.ts}`,
       );
-    },
-  );
-
-  // ── Broadcast approval actions ────────────────────────────────────────────
-  app.action(
-    "approve_broadcast",
-    async ({ ack, action, body, client, logger }) => {
-      await ack();
-      const { broadcastId, userId, scheduledFor } = JSON.parse(
-        (action as ButtonAction).value!,
-      ) as ApprovalActionValue;
-      logger.info(
-        `Broadcast approved — broadcastId: ${broadcastId}, userId: ${userId}`,
-      );
-
-      const blockBody = body as BlockAction;
-      const channel = blockBody.channel!.id;
-      const messageTs = blockBody.message!.ts!;
-
-      await client.chat.update({
-        channel,
-        ts: messageTs,
-        blocks: blockBody.message!.blocks?.filter(
-          (b: { type: string }) => b.type !== "actions",
-        ),
-      });
-
-      await sendJob(HANDLE_APPROVAL_QUEUE, {
-        broadcastId,
-        approved: true,
-        approverId: body.user.id,
-        requesterId: userId,
-        scheduledFor,
-      });
-
-      await client.chat.postMessage({
-        channel,
-        thread_ts: messageTs,
-        text: `✅ Answer saved: *Approved* by <@${body.user.id}>.`,
-      });
-    },
-  );
-
-  app.action(
-    "reject_broadcast",
-    async ({ ack, action, body, client, logger }) => {
-      await ack();
-      const { broadcastId, userId, scheduledFor } = JSON.parse(
-        (action as ButtonAction).value!,
-      ) as ApprovalActionValue;
-      logger.info(
-        `Broadcast rejected — broadcastId: ${broadcastId}, userId: ${userId}`,
-      );
-
-      const blockBody = body as BlockAction;
-      const channel = blockBody.channel!.id;
-      const messageTs = blockBody.message!.ts!;
-
-      await client.chat.update({
-        channel,
-        ts: messageTs,
-        blocks: blockBody.message!.blocks?.filter(
-          (b: { type: string }) => b.type !== "actions",
-        ),
-      });
-
-      await sendJob(HANDLE_APPROVAL_QUEUE, {
-        broadcastId,
-        approved: false,
-        approverId: body.user.id,
-        requesterId: userId,
-        scheduledFor,
-      });
-
-      await client.chat.postMessage({
-        channel,
-        thread_ts: messageTs,
-        text: `❌ Answer saved: *Rejected* by <@${body.user.id}>.`,
-      });
     },
   );
 
@@ -225,16 +131,13 @@ export function registerHandlers(app: App): void {
 
     pendingBroadcasts.delete(message.thread_ts);
 
-    const { title, scheduledDate, requesterId, approvers } = pending;
+    const { title, scheduledFor, requesterId, approvers, audience } = pending;
 
     const files = (
       (message as unknown as { files?: SlackFile[] }).files ?? []
-    ).map(({ id, name, mimetype, url_private, permalink }) => ({
-      id,
+    ).map(({ name, url_private }) => ({
       name,
-      mimetype,
       url_private,
-      permalink,
     }));
 
     // Pre-generate the broadcast ID so it can serve as both the PgBoss job ID
@@ -246,15 +149,21 @@ export function registerHandlers(app: App): void {
       {
         broadcastId,
         title,
-        scheduledFor: scheduledDate,
+        scheduledFor,
         messageBody: message.text,
         files,
         requesterId,
         approvers,
+        audience,
         channelId: message.channel,
         threadTs: message.thread_ts,
       },
-      { id: broadcastId },
+      {
+        id: broadcastId,
+        group: {
+          id: broadcastId,
+        },
+      },
     );
 
     await client.chat.postMessage({
@@ -264,7 +173,98 @@ export function registerHandlers(app: App): void {
     });
 
     logger.info(
-      `Broadcast job created — broadcastId: ${broadcastId}, title: "${title}", scheduledFor: "${scheduledDate}", files: ${files.length}`,
+      `Broadcast job created — broadcastId: ${broadcastId}, title: "${title}", scheduledFor: "${toReadableDate(scheduledFor)}", files: ${files.length}`,
     );
   });
+
+  // ── Broadcast approval actions ────────────────────────────────────────────
+  app.action(
+    "approve_broadcast",
+    async ({ ack, action, body, client, logger }) => {
+      await ack();
+
+      const { broadcastId, requesterId, scheduledFor } = JSON.parse(
+        (action as ButtonAction).value!,
+      ) as ApprovalMessageMetadata;
+
+      logger.info(
+        `Broadcast approved — broadcastId: ${broadcastId}, approverId: ${body.user.id}.`,
+      );
+
+      const blockBody = body as BlockAction;
+      const channel = blockBody.channel!.id;
+      const messageTs = blockBody.message!.ts!;
+
+      await client.chat.update({
+        channel,
+        ts: messageTs,
+        blocks: blockBody.message!.blocks?.filter(
+          (b: { type: string }) => b.type !== "actions",
+        ),
+      });
+
+      await sendJob(
+        HANDLE_APPROVAL_QUEUE,
+        {
+          broadcastId,
+          approved: true,
+          approverId: body.user.id,
+          requesterId,
+          scheduledFor,
+        },
+        { group: { id: broadcastId } },
+      );
+
+      await client.chat.postMessage({
+        channel,
+        thread_ts: messageTs,
+        text: `✅ Answer saved: *Approved* by <@${body.user.id}>.`,
+      });
+    },
+  );
+
+  app.action(
+    "reject_broadcast",
+    async ({ ack, action, body, client, logger }) => {
+      await ack();
+
+      const { broadcastId, requesterId, scheduledFor } = JSON.parse(
+        (action as ButtonAction).value!,
+      ) as ApprovalMessageMetadata;
+
+      logger.info(
+        `Broadcast rejected — broadcastId: ${broadcastId}, approverId: ${body.user.id}`,
+      );
+
+      const blockBody = body as BlockAction;
+      const channel = blockBody.channel!.id;
+      const messageTs = blockBody.message!.ts!;
+
+      await client.chat.update({
+        channel,
+        ts: messageTs,
+        blocks: blockBody.message!.blocks?.filter(
+          (b: { type: string }) => b.type !== "actions",
+        ),
+      });
+
+      await sendJob(
+        HANDLE_APPROVAL_QUEUE,
+        {
+          broadcastId,
+          approved: false,
+          approverId: body.user.id,
+          requesterId,
+          scheduledFor,
+        },
+        { group: { id: broadcastId } },
+      );
+
+      await client.chat.postMessage({
+        channel,
+        thread_ts: messageTs,
+        text: `❌ Answer saved: *Rejected* by <@${body.user.id}>.`,
+      });
+    },
+  );
 }

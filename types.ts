@@ -8,11 +8,12 @@ export interface RequestApprovalJobData {
   channelId: string;
   threadTs: string;
   title: string;
-  scheduledFor: string;
+  scheduledFor: number;
   requesterId: string;
   messageBody: string;
   files: SlackFile[];
   approvers: string[];
+  audience: string[];
 }
 
 export interface HandleApprovalJobData {
@@ -20,7 +21,7 @@ export interface HandleApprovalJobData {
   approved: boolean;
   approverId: string;
   requesterId: string;
-  scheduledFor: string;
+  scheduledFor: number;
 }
 
 export interface FanoutJobData {
@@ -31,7 +32,7 @@ export interface DeliverJobData {
   broadcastId: string;
   recipientId: string;
   title: string;
-  scheduledFor: string;
+  scheduledFor: number;
   messageBody: string;
   files: SlackFile[];
   requesterId: string;

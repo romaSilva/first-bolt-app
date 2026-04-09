@@ -28,15 +28,17 @@
   "oauth_config": {
     "scopes": {
       "bot": [
-        "files:write",
+        "channels:read",
         "channels:history",
         "chat:write",
         "commands",
+        "files:read",
+        "files:write",
         "groups:write",
         "im:history",
         "im:write",
         "mpim:write",
-        "files:read"
+        "groups:read"
       ]
     },
     "pkce_enabled": false

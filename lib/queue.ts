@@ -29,5 +29,5 @@ export function sendJob<Q extends keyof QueuePayloadMap>(
   data: QueuePayloadMap[Q],
   options?: SendOptions,
 ): Promise<string | null> {
-  return boss.send(queue, data as object, options);
+  return boss.send(queue, data as object, { retryLimit: 0, ...options });
 }

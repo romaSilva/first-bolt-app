@@ -13,12 +13,52 @@ export async function register(
   await boss.createQueue(QUEUE);
 
   await boss.work<DeliverJobData>(QUEUE, async ([job]) => {
-    const { broadcastId } = job.data;
+    const { broadcastId, recipientId, messageBody, files } = job.data;
 
     logger.info(
-      `Processing deliver job ${job.id} — broadcastId: "${broadcastId}"`,
+      `Processing deliver job ${job.id} — broadcastId: "${broadcastId}", recipientId: "${recipientId}"`,
     );
 
-    // TODO: implement delivery logic
+    if (files.length > 0) {
+      const firstFile = files[0];
+      const response = await fetch(firstFile.url_private, {
+        headers: { Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}` },
+      });
+      const buffer = Buffer.from(await response.arrayBuffer());
+      await deliverMessage(client, recipientId, messageBody, {
+        buffer,
+        filename: firstFile.name,
+      });
+    } else {
+      await deliverMessage(client, recipientId, messageBody);
+    }
+  });
+}
+
+async function deliverMessage(
+  client: WebClient,
+  userId: string,
+  text: string,
+  file?: {
+    buffer: Buffer;
+    filename: string;
+  },
+): Promise<void> {
+  const { channel } = await client.conversations.open({ users: userId });
+  const channelId = channel!.id!;
+
+  if (file) {
+    await client.files.uploadV2({
+      channel_id: channelId,
+      file: file.buffer,
+      filename: file.filename,
+      initial_comment: text,
+    });
+    return;
+  }
+
+  await client.chat.postMessage({
+    channel: channelId,
+    text,
   });
 }
