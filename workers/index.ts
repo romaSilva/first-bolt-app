@@ -14,12 +14,17 @@ import {
   register as registerDeliver,
   QUEUE as DELIVER_QUEUE,
 } from "./deliver.ts";
+import {
+  register as registerMarkDelivered,
+  QUEUE as MARK_DELIVERED_QUEUE,
+} from "./markDelivered.ts";
 
 export const QUEUES = {
   REQUEST_APPROVAL: REQUEST_APPROVAL_QUEUE,
   HANDLE_APPROVAL: HANDLE_APPROVAL_QUEUE,
   FANOUT: FANOUT_QUEUE,
   DELIVER: DELIVER_QUEUE,
+  MARK_DELIVERED: MARK_DELIVERED_QUEUE,
 } as const;
 
 // Re-export individual queue names for consumers that reference them directly.
@@ -28,6 +33,7 @@ export {
   HANDLE_APPROVAL_QUEUE,
   FANOUT_QUEUE,
   DELIVER_QUEUE,
+  MARK_DELIVERED_QUEUE,
 };
 
 export async function registerAllWorkers(
@@ -39,4 +45,5 @@ export async function registerAllWorkers(
   await registerHandleApproval(boss, client, logger);
   await registerFanout(boss, client, logger);
   await registerDeliver(boss, client, logger);
+  await registerMarkDelivered(boss, client, logger);
 }
