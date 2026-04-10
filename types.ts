@@ -1,35 +1,47 @@
+export const BroadcastStatus = {
+  Draft: "draft",
+  PendingApproval: "pending_approval",
+  Approved: "approved",
+  Rejected: "rejected",
+  Delivered: "delivered",
+} as const;
+
+export type BroadcastStatus =
+  (typeof BroadcastStatus)[keyof typeof BroadcastStatus];
+
+export interface BroadcastMetadata {
+  channelId: string;
+  title: string;
+  scheduledFor: number;
+  requesterId: string;
+  approvers: string[];
+  audience: string[];
+}
 export interface SlackFile {
   url_private: string;
   name: string;
 }
-
-export interface RequestApprovalJobData {
-  broadcastId: string;
-  channelId: string;
-  threadTs: string;
-  title: string;
-  scheduledFor: number;
-  requesterId: string;
+export interface BroadcastContent {
   messageBody: string;
   files: SlackFile[];
-  approvers: string[];
-  audience: string[];
 }
 
-export interface HandleApprovalJobData {
+interface DefaultJobData {
   broadcastId: string;
+}
+
+export interface RequestApprovalJobData extends DefaultJobData {}
+
+export interface HandleApprovalJobData extends DefaultJobData {
   approved: boolean;
   approverId: string;
   requesterId: string;
   scheduledFor: number;
 }
 
-export interface FanoutJobData {
-  broadcastId: string;
-}
+export interface FanoutJobData extends DefaultJobData {}
 
-export interface DeliverJobData {
-  broadcastId: string;
+export interface DeliverJobData extends DefaultJobData {
   recipientId: string;
   title: string;
   scheduledFor: number;

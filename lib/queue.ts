@@ -1,10 +1,10 @@
 import type { PgBoss } from "pg-boss";
 import { boss } from "../boss.ts";
 import type {
-  RequestApprovalJobData,
   HandleApprovalJobData,
   FanoutJobData,
   DeliverJobData,
+  RequestApprovalJobData,
 } from "../types.ts";
 
 type SendOptions = NonNullable<Parameters<PgBoss["send"]>[2]>;

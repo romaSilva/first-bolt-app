@@ -2,7 +2,12 @@ import type { PgBoss } from "pg-boss";
 import type { WebClient } from "@slack/web-api";
 import type { Logger } from "@slack/bolt";
 import { approvalMessage } from "../views/approvalMessage.ts";
-import type { RequestApprovalJobData } from "../types.ts";
+import { pool } from "../db.ts";
+import type {
+  RequestApprovalJobData,
+  BroadcastMetadata,
+  BroadcastContent,
+} from "../types.ts";
 
 export const QUEUE = "broadcast.request-approval";
 
@@ -14,19 +19,30 @@ export async function register(
   await boss.createQueue(QUEUE);
 
   await boss.work<RequestApprovalJobData>(QUEUE, async ([job]) => {
-    const {
-      broadcastId,
-      channelId,
-      threadTs,
-      title,
-      scheduledFor,
-      requesterId,
-      messageBody,
-      files,
-      approvers,
-    } = job.data;
+    const { broadcastId } = job.data;
 
-    logger.info(`Processing broadcast job ${job.id} — title: "${title}"`);
+    const { rows } = await pool.query<{
+      thread_ts: string;
+      metadata: BroadcastMetadata;
+      content: BroadcastContent;
+    }>(
+      `SELECT thread_ts, metadata, content FROM bot.broadcasts WHERE id = $1`,
+      [broadcastId],
+    );
+
+    if (rows.length === 0) {
+      logger.error(`Broadcast not found — broadcastId: "${broadcastId}"`);
+      return;
+    }
+
+    const { thread_ts: threadTs, metadata, content } = rows[0];
+    const { channelId, title, scheduledFor, requesterId, approvers, audience } =
+      metadata;
+    const { messageBody, files } = content;
+
+    logger.info(
+      `Processing broadcast job ${job.id} — broadcastId: "${broadcastId}"`,
+    );
 
     // Notify the requester that the broadcast has been sent for approval.
     await client.chat.postMessage({
@@ -43,7 +59,13 @@ export async function register(
     // Step 1: Intro message with broadcast metadata and approve/reject buttons.
     const intro = await client.chat.postMessage({
       channel: channel!.id!,
-      ...approvalMessage({ broadcastId, title, scheduledFor, requesterId }),
+      ...approvalMessage({
+        broadcastId,
+        title,
+        scheduledFor,
+        requesterId,
+        audience,
+      }),
     });
 
     // Step 2: Reply in thread with the message content (+ file if present).

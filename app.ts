@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { App } from "@slack/bolt";
 import { boss } from "./boss.ts";
-import { registerHandlers } from "./handlers.ts";
+import { registerHandlers } from "./handlers/index.ts";
 import { registerAllWorkers } from "./workers/index.ts";
 
 const app = new App({

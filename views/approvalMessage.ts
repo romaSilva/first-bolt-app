@@ -6,6 +6,7 @@ export interface ApprovalMessageMetadata {
   title: string;
   scheduledFor: number;
   requesterId: string;
+  audience: string[];
 }
 
 export function approvalMessage({
@@ -13,12 +14,14 @@ export function approvalMessage({
   title,
   scheduledFor,
   requesterId,
+  audience,
 }: ApprovalMessageMetadata): { text: string; blocks: KnownBlock[] } {
   const metadata: ApprovalMessageMetadata = {
     broadcastId,
     title,
     scheduledFor,
     requesterId,
+    audience,
   };
   const buttonValue = JSON.stringify(metadata);
 
@@ -36,7 +39,7 @@ export function approvalMessage({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*Title*: ${title}\n*Scheduled For*: ${toReadableDate(scheduledFor)}\n*Broadcast ID*: \`${broadcastId}\`\n*Requested By*: <@${requesterId}>`,
+          text: `*Title*: ${title}\n*Scheduled For*: ${toReadableDate(scheduledFor)}\n*Broadcast ID*: \`${broadcastId}\`\n*Requested By*: <@${requesterId}>\n*Audience*: ${audience.map((c) => `<#${c}>`).join(", ")}`,
         },
       },
       { type: "divider" },

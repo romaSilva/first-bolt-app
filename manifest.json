@@ -38,14 +38,20 @@
         "im:history",
         "im:write",
         "mpim:write",
-        "groups:read"
+        "groups:read",
+        "reactions:read"
       ]
     },
     "pkce_enabled": false
   },
   "settings": {
     "event_subscriptions": {
-      "bot_events": ["message.channels", "message.im"]
+      "bot_events": [
+        "message.channels",
+        "message.im",
+        "reaction_added",
+        "reaction_removed"
+      ]
     },
     "interactivity": {
       "is_enabled": true

@@ -1,9 +1,14 @@
 import type { PgBoss } from "pg-boss";
 import type { WebClient } from "@slack/web-api";
 import type { Logger } from "@slack/bolt";
+import { pool } from "../db.ts";
 import { sendJob } from "../lib/queue.ts";
-import { REQUEST_APPROVAL_QUEUE, DELIVER_QUEUE } from "./index.ts";
-import type { FanoutJobData, RequestApprovalJobData } from "../types.ts";
+import { DELIVER_QUEUE } from "./index.ts";
+import type {
+  FanoutJobData,
+  BroadcastMetadata,
+  BroadcastContent,
+} from "../types.ts";
 import { toDate } from "../lib/date.ts";
 
 export const QUEUE = "broadcast.fanout";
@@ -43,24 +48,23 @@ export async function register(
     );
 
     try {
-      // Fetch the original request-approval job, which carries the full broadcast payload.
-      // broadcastId was set as the pg-boss job ID when the job was enqueued in handlers.js.
-      const sourceJob = await boss.findJobs<RequestApprovalJobData>(
-        REQUEST_APPROVAL_QUEUE,
-        {
-          id: broadcastId,
-        },
-      );
+      const { rows } = await pool.query<{
+        metadata: BroadcastMetadata;
+        content: BroadcastContent;
+      }>(`SELECT metadata, content FROM bot.broadcasts WHERE id = $1`, [
+        broadcastId,
+      ]);
 
-      if (!sourceJob) {
+      if (rows.length === 0) {
         logger.error(
-          `Fanout job ${job.id} — source job not found for broadcastId: "${broadcastId}". Skipping.`,
+          `Fanout job ${job.id} — broadcast not found for broadcastId: "${broadcastId}". Skipping.`,
         );
         return;
       }
 
-      const { title, scheduledFor, messageBody, files, requesterId, audience } =
-        sourceJob[0].data;
+      const { metadata, content } = rows[0];
+      const { title, scheduledFor, requesterId, audience } = metadata;
+      const { messageBody, files } = content;
 
       const memberLists = await Promise.all(
         audience.map((channelId) => getChannelMembers(client, channelId)),
