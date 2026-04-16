@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { App } from "@slack/bolt";
 import { pool } from "../db.ts";
 import { sendJob } from "../lib/queue.ts";
-import { broadcastModal } from "../views/broadcastModal.ts";
+import { BROADCAST_MODAL_CALLBACK_ID } from "../views/broadcastModal.ts";
 import { sendDM } from "../lib/slack.ts";
 import { REQUEST_APPROVAL_QUEUE } from "../workers/index.ts";
 import { BroadcastStatus } from "../types.ts";
@@ -11,7 +11,7 @@ import type {
   BroadcastMetadata,
   SlackFile,
 } from "../types.ts";
-import { toReadableDate } from "../lib/date.ts";
+import { toDate, toReadableDate } from "../lib/date.ts";
 
 interface GenericMessageEvent {
   channel_type: "channel" | "group" | "im" | "mpim";
@@ -25,7 +25,7 @@ interface GenericMessageEvent {
 export function registerBroadcastCreationHandlers(app: App): void {
   // Triggered when the user fills in and submits the broadcast modal.
   app.view(
-    broadcastModal.callback_id!,
+    BROADCAST_MODAL_CALLBACK_ID,
     async ({ ack, body, view, client, logger }) => {
       await ack();
 
@@ -34,9 +34,13 @@ export function registerBroadcastCreationHandlers(app: App): void {
       const scheduledFor =
         values.broadcast_schedule.schedule_input.selected_date_time!;
       const approvers =
-        values.broadcast_approvers["multi_users_select-action"].selected_users!;
+        values.broadcast_approvers.approvers_select.selected_options!.map(
+          (o) => o.value!,
+        );
       const audience =
         values.broadcast_channels.channels_select.selected_conversations!;
+      const responders =
+        values.broadcast_responders?.responders_select?.selected_users ?? [];
 
       const readableScheduledFor = toReadableDate(scheduledFor);
 
@@ -56,6 +60,7 @@ export function registerBroadcastCreationHandlers(app: App): void {
         requesterId: body.user.id,
         approvers,
         audience,
+        ...(responders.length > 0 ? { responders } : {}),
       };
 
       await pool.query(

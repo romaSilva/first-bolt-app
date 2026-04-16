@@ -1,5 +1,7 @@
 import type { App } from "@slack/bolt";
 import { pool } from "../db.ts";
+import { sendDM } from "../lib/slack.ts";
+import type { BroadcastMetadata } from "../types.ts";
 
 interface BroadcastMessageRow {
   broadcast_id: string;
@@ -87,7 +89,7 @@ export function registerEngagementEventHandlers(app: App): void {
     }
   });
 
-  app.event("message", async ({ event, logger }) => {
+  app.event("message", async ({ event, client, logger }) => {
     try {
       const ev = event as GenericMessageEvent;
 
@@ -128,6 +130,25 @@ export function registerEngagementEventHandlers(app: App): void {
       logger.info(
         `Reply stored — broadcastId: "${broadcast_id}", user: "${user}", ts: "${ts}"`,
       );
+
+      const { rows: broadcastRows } = await pool.query<{
+        metadata: BroadcastMetadata;
+      }>(`SELECT metadata FROM bot.broadcasts WHERE id = $1`, [broadcast_id]);
+
+      const responders = broadcastRows[0]?.metadata?.responders ?? [];
+      if (responders.length > 0) {
+        const notification = `New reply to broadcast \`${broadcast_id}\`:\n> ${text}`;
+        await Promise.all(
+          responders.map((responderId) =>
+            sendDM(client, responderId, notification).catch((err) =>
+              logger.error(
+                `Failed to notify responder ${responderId} for broadcast ${broadcast_id}:`,
+                err,
+              ),
+            ),
+          ),
+        );
+      }
     } catch (err) {
       logger.error("Error handling reply event:", err);
     }

@@ -10,11 +10,12 @@ import { toReadableDate } from "../lib/date.ts";
 
 export const QUEUE = "broadcast.mark-delivered";
 
-const CRON_EVERY_2_MINUTES = "*/2 * * * *";
+const CRON_EVERY_15_MINUTES = "*/15 * * * *";
 
 interface DeliveryCheckResult {
   ready: boolean;
   total: number;
+  attempted: number;
 }
 
 interface DeliveryStats {
@@ -25,10 +26,15 @@ interface DeliveryStats {
 async function isReadyToDeliver(
   broadcastId: string,
 ): Promise<DeliveryCheckResult> {
-  const { rows } = await pool.query<{ total: string; terminal: string }>(
+  const { rows } = await pool.query<{
+    total: string;
+    terminal: string;
+    attempted: string;
+  }>(
     `SELECT
       COUNT(*) AS total,
-      COUNT(*) FILTER (WHERE state IN ('completed', 'cancelled', 'failed')) AS terminal
+      COUNT(*) FILTER (WHERE state IN ('completed', 'cancelled', 'failed')) AS terminal,
+      COUNT(*) FILTER (WHERE state != 'cancelled') AS attempted
     FROM pgboss.job
     WHERE name = $1
       AND group_id = $2`,
@@ -37,8 +43,9 @@ async function isReadyToDeliver(
 
   const total = parseInt(rows[0].total, 10);
   const terminal = parseInt(rows[0].terminal, 10);
+  const attempted = parseInt(rows[0].attempted, 10);
 
-  return { ready: total > 0 && total === terminal, total };
+  return { ready: total > 0 && total === terminal, total, attempted };
 }
 
 async function markAsDelivered(broadcastId: string): Promise<void> {
@@ -98,7 +105,7 @@ export async function register(
   logger: Logger,
 ): Promise<void> {
   await boss.createQueue(QUEUE);
-  await boss.schedule(QUEUE, CRON_EVERY_2_MINUTES, {});
+  await boss.schedule(QUEUE, CRON_EVERY_15_MINUTES, {});
 
   await boss.work(QUEUE, async ([job]) => {
     logger.info(`Processing mark-delivered job ${job.id}`);
@@ -126,7 +133,7 @@ export async function register(
         const { id: broadcastId, metadata } = broadcast;
         const { requesterId, title, scheduledFor } = metadata;
 
-        const { ready, total } = await isReadyToDeliver(broadcastId);
+        const { ready, total, attempted } = await isReadyToDeliver(broadcastId);
 
         if (!ready) {
           logger.info(
@@ -140,7 +147,7 @@ export async function register(
           `Mark-delivered job ${job.id} — broadcastId "${broadcastId}" marked as delivered.`,
         );
 
-        const stats = await gatherDeliveryStats(broadcastId, total);
+        const stats = await gatherDeliveryStats(broadcastId, attempted);
         await sendDeliveryReport(
           requesterId,
           title,

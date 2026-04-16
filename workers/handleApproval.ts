@@ -5,7 +5,7 @@ import { sendDM } from "../lib/slack.ts";
 import { sendJob } from "../lib/queue.ts";
 import { FANOUT_QUEUE } from "./index.ts";
 import type { HandleApprovalJobData } from "../types.ts";
-import { toReadableDate } from "../lib/date.ts";
+import { toReadableDate, toDate } from "../lib/date.ts";
 
 export const QUEUE = "broadcast.handle-approval";
 
@@ -36,7 +36,10 @@ export async function register(
         await sendJob(
           FANOUT_QUEUE,
           { broadcastId },
-          { group: { id: broadcastId } },
+          {
+            group: { id: broadcastId },
+            startAfter: toDate(scheduledFor - 3600),
+          },
         );
 
         logger.info(`Broadcast ${broadcastId} approved — fanout job created.`);

@@ -2,6 +2,7 @@ import type { PgBoss } from "pg-boss";
 import type { WebClient } from "@slack/web-api";
 import type { Logger } from "@slack/bolt";
 import { pool } from "../db.ts";
+import { sendDM } from "../lib/slack.ts";
 import { sendJob } from "../lib/queue.ts";
 import { DELIVER_QUEUE } from "./index.ts";
 import type {
@@ -69,7 +70,14 @@ export async function register(
       const memberLists = await Promise.all(
         audience.map((channelId) => getChannelMembers(client, channelId)),
       );
+
       const recipients = [...new Set(memberLists.flat())];
+
+      await sendDM(
+        client,
+        requesterId,
+        `🔔 Your broadcast \`${broadcastId}\` is being delivered now. ${recipients.length} recipient(s) will receive it shortly.`,
+      );
 
       await Promise.all(
         recipients.map((recipientId) =>

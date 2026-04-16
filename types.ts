@@ -16,6 +16,7 @@ export interface BroadcastMetadata {
   requesterId: string;
   approvers: string[];
   audience: string[];
+  responders?: string[];
 }
 export interface SlackFile {
   url_private: string;

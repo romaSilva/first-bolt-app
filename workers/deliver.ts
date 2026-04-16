@@ -21,44 +21,57 @@ export async function register(
     );
 
     try {
+      let fileArg: { buffer: Buffer; filename: string } | undefined;
       if (files.length > 0) {
         const firstFile = files[0];
+
         const response = await fetch(firstFile.url_private, {
           headers: { Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}` },
         });
-        const buffer = Buffer.from(await response.arrayBuffer());
-        const { channelId, messageRef: messageTs } = await deliverMessage(
-          client,
-          recipientId,
-          messageBody,
-          { buffer, filename: firstFile.name },
-        );
-        await recordDelivery(
-          broadcastId,
-          recipientId,
-          channelId,
-          messageTs,
-          logger,
-        );
-      } else {
-        const { channelId, messageRef: messageTs } = await deliverMessage(
-          client,
-          recipientId,
-          messageBody,
-        );
-        await recordDelivery(
-          broadcastId,
-          recipientId,
-          channelId,
-          messageTs,
-          logger,
-        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch file "${firstFile.name}": ${response.status} ${response.statusText}`,
+          );
+        }
+
+        fileArg = {
+          buffer: Buffer.from(await response.arrayBuffer()),
+          filename: firstFile.name,
+        };
       }
+
+      const { channelId, messageRef } = await deliverMessage(
+        client,
+        recipientId,
+        messageBody,
+        fileArg,
+      );
+
+      await recordDelivery(
+        broadcastId,
+        recipientId,
+        channelId,
+        messageRef,
+        logger,
+      );
 
       logger.info(
         `Deliver job ${job.id} complete — broadcastId: "${broadcastId}", recipientId: "${recipientId}"`,
       );
     } catch (error) {
+      const slackError = error as { code?: string; data?: { error?: string } };
+      if (
+        slackError.code === "slack_webapi_platform_error" &&
+        slackError.data?.error === "cannot_dm_bot"
+      ) {
+        logger.warn(
+          `Cancelling deliver job ${job.id} — recipient "${recipientId}" is a bot and cannot receive DMs`,
+        );
+        await boss.cancel(QUEUE, job.id);
+        return;
+      }
+
       logger.error(
         `Failed to process deliver job ${job.id} — broadcastId: "${broadcastId}", recipientId: "${recipientId}"`,
         error,
@@ -112,5 +125,6 @@ async function recordDelivery(
       `Failed to record delivery — broadcastId: "${broadcastId}", recipientId: "${recipientId}"`,
       error,
     );
+    throw error;
   }
 }
