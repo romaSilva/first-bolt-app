@@ -2,7 +2,7 @@ import type { PgBoss } from "pg-boss";
 import type { WebClient } from "@slack/web-api";
 import type { Logger } from "@slack/bolt";
 import { pool } from "../db.ts";
-import { sendDM } from "../lib/slack.ts";
+import { sendDM, getChannelMembers } from "../lib/slack.ts";
 import { sendJob } from "../lib/queue.ts";
 import { DELIVER_QUEUE } from "./index.ts";
 import type {
@@ -13,26 +13,6 @@ import type {
 import { toDate } from "../lib/date.ts";
 
 export const QUEUE = "broadcast.fanout";
-
-async function getChannelMembers(
-  client: WebClient,
-  channelId: string,
-): Promise<string[]> {
-  const members: string[] = [];
-  let cursor: string | undefined;
-
-  do {
-    const result = await client.conversations.members({
-      channel: channelId,
-      cursor,
-      limit: 200,
-    });
-    members.push(...(result.members ?? []));
-    cursor = result.response_metadata?.next_cursor || undefined;
-  } while (cursor);
-
-  return members;
-}
 
 export async function register(
   boss: PgBoss,
@@ -71,7 +51,15 @@ export async function register(
         audience.map((channelId) => getChannelMembers(client, channelId)),
       );
 
-      const recipients = [...new Set(memberLists.flat())];
+      // const recipients = [...new Set(memberLists.flat())];
+
+      // ⚠️ LOAD TEST ONLY — remove before deploying
+      const LOAD_TEST_MULTIPLIER = 100;
+      const uniqueRecipients = [...new Set(memberLists.flat())];
+      const recipients = uniqueRecipients.flatMap((id) =>
+        Array.from({ length: LOAD_TEST_MULTIPLIER }, () => id),
+      );
+      // END LOAD TEST
 
       await sendDM(
         client,

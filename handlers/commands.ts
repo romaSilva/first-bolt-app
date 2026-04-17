@@ -1,24 +1,15 @@
 import type { App } from "@slack/bolt";
+import type { WebClient } from "@slack/web-api";
 import type { PlainTextOption } from "@slack/web-api";
 import { pool } from "../db.ts";
 import { buildBroadcastModal } from "../views/broadcastModal.ts";
+import { getChannelMembers } from "../lib/slack.ts";
 
 async function fetchApproverOptions(
-  client: App["client"],
+  client: WebClient,
   channelId: string,
 ): Promise<PlainTextOption[]> {
-  const memberIds: string[] = [];
-  let cursor: string | undefined;
-
-  do {
-    const result = await client.conversations.members({
-      channel: channelId,
-      limit: 200,
-      ...(cursor ? { cursor } : {}),
-    });
-    memberIds.push(...(result.members ?? []));
-    cursor = result.response_metadata?.next_cursor;
-  } while (cursor);
+  const memberIds = await getChannelMembers(client, channelId);
 
   const options: PlainTextOption[] = [];
 
