@@ -15,15 +15,17 @@ export function approvalMessage({
   scheduledFor,
   requesterId,
   audience,
-}: ApprovalMessageMetadata): { text: string; blocks: KnownBlock[] } {
-  const metadata: ApprovalMessageMetadata = {
+}: ApprovalMessageMetadata): {
+  text: string;
+  blocks: KnownBlock[];
+} {
+  const buttonValue = JSON.stringify({
     broadcastId,
     title,
     scheduledFor,
     requesterId,
     audience,
-  };
-  const buttonValue = JSON.stringify(metadata);
+  });
 
   return {
     text: `📋 Approval request from <@${requesterId}>: *${title}*`,

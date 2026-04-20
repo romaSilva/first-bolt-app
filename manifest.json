@@ -15,12 +15,29 @@
     "slash_commands": [
       {
         "command": "/ping",
-        "description": "Checks if the app is listening",
+        "description": "Checks if the app is listening.",
         "should_escape": false
       },
       {
         "command": "/broadcast",
-        "description": "Broadcasts a message",
+        "description": "Create and schedule a new broadcast message.",
+        "should_escape": false
+      },
+      {
+        "command": "/broadcast-cancel",
+        "description": "Cancel a scheduled broadcast.",
+        "usage_hint": "<broadcast_id>",
+        "should_escape": false
+      },
+      {
+        "command": "/broadcast-list",
+        "description": "List your broadcasts.",
+        "should_escape": false
+      },
+      {
+        "command": "/broadcast-view",
+        "description": "View details of a broadcast.",
+        "usage_hint": "<broadcast_id>",
         "should_escape": false
       }
     ]
@@ -59,6 +76,7 @@
     },
     "org_deploy_enabled": true,
     "socket_mode_enabled": true,
-    "token_rotation_enabled": false
+    "token_rotation_enabled": false,
+    "is_mcp_enabled": false
   }
 }

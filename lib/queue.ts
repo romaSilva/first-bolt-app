@@ -5,6 +5,7 @@ import type {
   FanoutJobData,
   DeliverJobData,
   RequestApprovalJobData,
+  InformRespondersJobData,
 } from "../types.ts";
 
 type SendOptions = NonNullable<Parameters<PgBoss["send"]>[2]>;
@@ -14,6 +15,7 @@ type SendOptions = NonNullable<Parameters<PgBoss["send"]>[2]>;
  * Add a new entry here whenever a new queue is introduced.
  */
 type QueuePayloadMap = {
+  "broadcast.inform-responders": InformRespondersJobData;
   "broadcast.request-approval": RequestApprovalJobData;
   "broadcast.handle-approval": HandleApprovalJobData;
   "broadcast.fanout": FanoutJobData;

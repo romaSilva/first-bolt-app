@@ -51,14 +51,14 @@ export async function register(
         audience.map((channelId) => getChannelMembers(client, channelId)),
       );
 
-      // const recipients = [...new Set(memberLists.flat())];
+      const recipients = [...new Set(memberLists.flat())];
 
       // ⚠️ LOAD TEST ONLY — remove before deploying
-      const LOAD_TEST_MULTIPLIER = 100;
-      const uniqueRecipients = [...new Set(memberLists.flat())];
-      const recipients = uniqueRecipients.flatMap((id) =>
-        Array.from({ length: LOAD_TEST_MULTIPLIER }, () => id),
-      );
+      // const LOAD_TEST_MULTIPLIER = 10;
+      // const uniqueRecipients = [...new Set(memberLists.flat())];
+      // const recipients = uniqueRecipients.flatMap((id) =>
+      //   Array.from({ length: LOAD_TEST_MULTIPLIER }, () => id),
+      // );
       // END LOAD TEST
 
       await sendDM(

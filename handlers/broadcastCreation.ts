@@ -4,7 +4,7 @@ import { pool } from "../db.ts";
 import { sendJob } from "../lib/queue.ts";
 import { BROADCAST_MODAL_CALLBACK_ID } from "../views/broadcastModal.ts";
 import { sendDM } from "../lib/slack.ts";
-import { REQUEST_APPROVAL_QUEUE } from "../workers/index.ts";
+import { INFORM_RESPONDERS_QUEUE } from "../workers/index.ts";
 import { BroadcastStatus } from "../types.ts";
 import type {
   BroadcastContent,
@@ -130,7 +130,7 @@ export function registerBroadcastCreationHandlers(app: App): void {
     );
 
     await sendJob(
-      REQUEST_APPROVAL_QUEUE,
+      INFORM_RESPONDERS_QUEUE,
       {
         broadcastId,
       },

@@ -4,6 +4,7 @@ export const BroadcastStatus = {
   Approved: "approved",
   Rejected: "rejected",
   Delivered: "delivered",
+  Cancelled: "cancelled",
 } as const;
 
 export type BroadcastStatus =
@@ -32,6 +33,8 @@ interface DefaultJobData {
 }
 
 export interface RequestApprovalJobData extends DefaultJobData {}
+
+export interface InformRespondersJobData extends DefaultJobData {}
 
 export interface HandleApprovalJobData extends DefaultJobData {
   approved: boolean;

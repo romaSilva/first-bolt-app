@@ -3,6 +3,7 @@ import type { WebClient } from "@slack/web-api";
 import type { Logger } from "@slack/bolt";
 import { approvalMessage } from "../views/approvalMessage.ts";
 import { pool } from "../db.ts";
+import { postContentMessage } from "../lib/slack.ts";
 import type {
   RequestApprovalJobData,
   BroadcastMetadata,
@@ -69,28 +70,13 @@ export async function register(
     });
 
     // Step 2: Reply in thread with the message content (+ file if present).
-    if (files.length > 0) {
-      const [firstFile] = files;
-
-      const downloadResponse = await fetch(firstFile.url_private, {
-        headers: { Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}` },
-      });
-      const buffer = Buffer.from(await downloadResponse.arrayBuffer());
-
-      await client.files.uploadV2({
-        channel_id: channel!.id!,
-        thread_ts: intro.ts!,
-        file: buffer,
-        filename: firstFile.name,
-        initial_comment: messageBody,
-      });
-    } else {
-      await client.chat.postMessage({
-        channel: channel!.id!,
-        thread_ts: intro.ts,
-        text: messageBody,
-      });
-    }
+    await postContentMessage(
+      client,
+      channel!.id!,
+      intro.ts!,
+      messageBody,
+      files,
+    );
 
     logger.info(
       `Broadcast job ${job.id} processed — notified ${approvers.length} approver(s).`,
