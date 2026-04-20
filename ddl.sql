@@ -76,3 +76,21 @@ CREATE TABLE bot.broadcast_replies (
 	CONSTRAINT broadcast_replies_pkey PRIMARY KEY (id),
 	CONSTRAINT broadcast_replies_broadcast_id_fkey FOREIGN KEY (broadcast_id) REFERENCES bot.broadcasts(id) ON DELETE CASCADE
 );
+
+
+-- bot.broadcast_responder_threads definition
+
+-- Drop table
+
+-- DROP TABLE bot.broadcast_responder_threads;
+
+CREATE TABLE bot.broadcast_responder_threads (
+	id serial4 NOT NULL,
+	broadcast_id uuid NOT NULL,
+	channel_id text NOT NULL,
+	thread_ts text NOT NULL,
+	created_at timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT broadcast_responder_threads_pkey PRIMARY KEY (id),
+	CONSTRAINT unique_broadcast_responder_thread UNIQUE (broadcast_id),
+	CONSTRAINT broadcast_responder_threads_broadcast_id_fkey FOREIGN KEY (broadcast_id) REFERENCES bot.broadcasts(id) ON DELETE CASCADE
+);
